@@ -1,0 +1,111 @@
+package Y.Petstore;
+
+import io.restassured.RestAssured;
+import io.restassured.response.Response;
+import org.junit.jupiter.api.;
+
+import java.io.File;
+
+import static org.junit.jupiter.api.Assertions.;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+public class PetTests {
+	private static Integer createdPetId;
+
+	@BeforeAll
+	public static void setup() {
+		RestAssured.useRelaxedHTTPSValidation();
+		RestAssured.baseURI = "https://petstore.swagger.io/v2";
+	}
+
+	@Test
+	@Order(1)
+	@DisplayName("POST создание питомца")
+	public void testCreatePet() {
+		String requestBody = "{\n" +
+				"  \"id\": 0,\n" +
+				"  \"category\": {\n" +
+				"    \"id\": 0,\n" +
+				"    \"name\": \"string\"\n" +
+				"  },\n" +
+				"  \"name\": \"doggie\",\n" +
+				"  \"photoUrls\": [\"string\"],\n" +
+				"  \"tags\": [{\"id\": 0, \"name\": \"string\"}],\n" +
+				"  \"status\": \"available\"\n" +
+				"}";
+		Response response = RestAssured.given()
+				.contentType("application/json")
+				.body(requestBody)
+				.post("/pet");
+		assertEquals(200, response.getStatusCode());
+		createdPetId = response.jsonPath().getInt("id");
+		assertNotNull(createdPetId, "ID питомца не должен быть равен null");
+	}
+
+	@Test
+	@Order(2)
+	@DisplayName("PUT обновление информации о питомце")
+	public void testUpdatePet() {
+		assumeTrue(createdPetId != null, "ID питомца должно быть взято из testCreatePet");
+		String requestBody = "{\n" +
+				"  \"id\": " + createdPetId + ",\n" +
+				"  \"category\": {\n" +
+				"    \"id\": 0,\n" +
+				"    \"name\": \"string\"\n" +
+				"  },\n" +
+				"  \"name\": \"updated doggie\",\n" +
+				"  \"photoUrls\": [\"string\"],\n" +
+				"  \"tags\": [{\"id\": 0, \"name\": \"string\"}],\n" +
+				"  \"status\": \"available\"\n" +
+				"}";
+		Response response = RestAssured.given()
+				.contentType("application/json")
+				.body(requestBody)
+				.put("/pet");
+		assertEquals(200, response.getStatusCode());
+		assertEquals(createdPetId, response.jsonPath().getInt("id"));
+		assertEquals("updated doggie", response.jsonPath().getString("name"));
+	}
+
+	@Test
+	@Order(3)
+	@DisplayName("POST добавление фото")
+	public void testUploadPhoto() {
+		assumeTrue(createdPetId != null, "ID питомца должно быть взято из testCreatePet");
+		File photoFile = new File("src/test/resources/cat.jpeg");
+		assertTrue(photoFile.exists(), "Файл 'cat.jpg' должен быть в src/test/resources/");
+		Response response = RestAssured.given()
+				.multiPart("file", photoFile)
+				.formParam("additionalMetadata", "some metadata")
+				.post("/pet/" + createdPetId + "/uploadImage");
+		assertEquals(200, response.getStatusCode());
+		String actualMessage = response.jsonPath().getString("message");
+		String expectedMessageStart = "additionalMetadata: some metadata\nFile uploaded to ./cat.jpeg";
+		assertTrue(actualMessage.startsWith(expectedMessageStart), "Сообщеение ответа не совпадает с сообщением запроса");
+		assertTrue(actualMessage.matches(expectedMessageStart + ", \\d+ bytes"), "Ответное сообщение не соответствует ожидаемому формату и размеру файла");
+	}
+
+	@Test
+	@Order(4)
+	@DisplayName("GET найти питомца по статусу")
+	public void testFindPetsByStatus() {
+		Response response = RestAssured.get("/pet/findByStatus?status=available");
+		assertEquals(200, response.getStatusCode());
+		assertTrue(response.jsonPath().getList("").size() > 0, "Должен быть хотя бы 1 доступный питомец");
+	}
+
+	@Test
+	@Order(5)
+	@DisplayName("DELETE удаление питомце")
+	public void testDeletePet() {
+		assumeTrue(createdPetId != null, "ID питомца должно быть взято из testCreatePet");
+		Response getResponse = RestAssured.get("/pet/" + createdPetId);
+		if (getResponse.getStatusCode() == 404) {
+			fail("Pet does not exist, cannot delete");
+		}
+		Response response = RestAssured.delete("/pet/" + createdPetId);
+		assertEquals(200, response.getStatusCode(), "Удаление питомца неуспешно, код ответа не равен 200");
+		assertEquals(createdPetId.toString(), response.jsonPath().getString("message"));
+	}
+}
