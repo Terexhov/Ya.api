@@ -73,7 +73,7 @@ public class PetTests {
 	@DisplayName("POST добавление фото")
 	public void testUploadPhoto() {
 		assumeTrue(createdPetId != null, "ID питомца должно быть взято из testCreatePet");
-		File photoFile = new File("src/test/resources/cat.jpeg");
+		File photoFile = new File("src/test/resources/cat.jpg");
 		assertTrue(photoFile.exists(), "Файл 'cat.jpg' должен быть в src/test/resources/");
 		Response response = RestAssured.given()
 				.multiPart("file", photoFile)
@@ -81,7 +81,7 @@ public class PetTests {
 				.post("/pet/" + createdPetId + "/uploadImage");
 		assertEquals(200, response.getStatusCode());
 		String actualMessage = response.jsonPath().getString("message");
-		String expectedMessageStart = "additionalMetadata: some metadata\nFile uploaded to ./cat.jpeg";
+		String expectedMessageStart = "additionalMetadata: some metadata\nFile uploaded to ./cat.jpg";
 		assertTrue(actualMessage.startsWith(expectedMessageStart), "Сообщеение ответа не совпадает с сообщением запроса");
 		assertTrue(actualMessage.matches(expectedMessageStart + ", \\d+ bytes"), "Ответное сообщение не соответствует ожидаемому формату и размеру файла");
 	}
