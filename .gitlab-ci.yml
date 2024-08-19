@@ -1,0 +1,17 @@
+image: openjdk:11-jdk-slim
+
+build:
+  stage: build
+  variables:
+  script:
+    - cd $CI_PROJECT_DIR
+    - mvn -s ci_settings.xml install
+
+deploy:
+  stage: test
+  variables:
+  before_script:
+    - export MAVEN_OPTS=" -Dfile.encoding=UTF-8 -Dmaven.clean.failOnError=false"
+  script:
+    - cd $CI_PROJECT_DIR
+    - mvn -s ci_settings.xml clean test
