@@ -1,0 +1,71 @@
+package Y.Petstore;
+
+import io.restassured.RestAssured;
+import io.restassured.response.Response;
+import org.junit.jupiter.api.;
+
+import static org.junit.jupiter.api.Assertions.;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+public class OrderTests {
+	private static Integer createdOrderId;
+	private static Integer createdPetId;
+
+	@BeforeAll
+	public static void setup() {
+		RestAssured.useRelaxedHTTPSValidation();
+		RestAssured.baseURI = "https://petstore.swagger.io/v2";
+	}
+
+	@Test
+	@Order(1)
+	@DisplayName("POST создание заказа")
+	public void testCreateOrder() {
+		createdPetId = createPetAndGetId();
+		String requestBody = "{\n" +
+				"  \"id\": 0,\n" +
+				"  \"petId\": " + createdPetId + ",\n" +
+				"  \"quantity\": 1,\n" +
+				"  \"shipDate\": \"2024-08-16T12:17:08.272Z\",\n" +
+				"  \"status\": \"placed\",\n" +
+				"  \"complete\": true\n" +
+				"}";
+		Response response = RestAssured.given()
+				.contentType("application/json")
+				.body(requestBody)
+				.post("/store/order");
+		assertEquals(200, response.getStatusCode());
+		createdOrderId = response.jsonPath().getInt("id");
+		assertNotNull(createdOrderId, "ID заказа не должен быть пустым");
+	}
+
+	@Test
+	@Order(2)
+	@DisplayName("DELETE удалить заказ")
+	public void testDeleteOrder() {
+		assumeTrue(createdOrderId != null, "ID заказа должен быть существующим");
+		Response response = RestAssured.delete("/store/order/" + createdOrderId);
+		assertEquals(200, response.getStatusCode());
+		assertTrue(response.getBody().asString().contains(createdOrderId.toString()), "В ответе должен быть ID удаленного заказа");
+	}
+
+	private Integer createPetAndGetId() {
+		String requestBody = "{\n" +
+				"  \"id\": 0,\n" +
+				"  \"category\": {\n" +
+				"    \"id\": 0,\n" +
+				"    \"name\": \"string\"\n" +
+				"  },\n" +
+				"  \"name\": \"doggie\",\n" +
+				"  \"photoUrls\": [\"string\"],\n" +
+				"  \"tags\": [{\"id\": 0, \"name\": \"string\"}],\n" +
+				"  \"status\": \"available\"\n" +
+				"}";
+		Response response = RestAssured.given()
+				.contentType("application/json")
+				.body(requestBody)
+				.post("/pet");
+		return response.jsonPath().getInt("id");
+	}
+}
